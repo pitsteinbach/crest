@@ -140,6 +140,7 @@ module calc_type
     logical  :: saveint = .false.
     character(len=:),allocatable :: solvmodel
     character(len=:),allocatable :: solvent
+    character(len=:),allocatable :: tblitesolver
 !>--- Some optional file name storages
     character(len=:),allocatable :: parametrisation
     logical  :: restart = .false.  !> restart option (some potentials can do this)
@@ -353,7 +354,10 @@ contains  !>--- Module routines start here
     integer :: i,j,k
     if (self%ncalculations > 0) then
       do i = 1,self%ncalculations
-        if(allocated(self%calcs(i)%tblite)) deallocate(self%calcs(i)%tblite)
+        if(allocated(self%calcs(i)%tblite)) then
+          call self%calcs(i)%tblite%ctx%delete_solver(.true.)
+          deallocate(self%calcs(i)%tblite)
+        endif
         if(allocated(self%calcs(i)%g0calc)) deallocate(self%calcs(i)%g0calc)
         if(allocated(self%calcs(i)%ff_dat)) deallocate(self%calcs(i)%ff_dat)
         if(allocated(self%calcs(i)%libpvol)) deallocate(self%calcs(i)%libpvol)

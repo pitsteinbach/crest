@@ -79,10 +79,10 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
   !> The default, all threads allocated to CREST
   T = env%threads
   parallel_jobs = max(1,T)
-  cores_per_job = 1
+  cores_per_job = env%cores_per_job
+  if (cores_per_job > 1) env%omp_allow_nested = .true.
   !> More settings, nested parallelization reset
   call omp_set_max_active_levels(1)
-
   select case (modus)
   case ('auto','auto_nested')
     !> distribute jobs automatically:
@@ -90,9 +90,9 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
     !> threads EVENLY for each job
     if (maxjobs > 0.and.T > maxjobs) then
       parallel_jobs = maxjobs
-      Tfrac = real(T)/real(maxjobs)
+      Tfrac = real(T*env%cores_per_job)/real(maxjobs)
       Tfloor = floor(Tfrac)
-      cores_per_job = max(nint(Tfloor),1)
+      cores_per_job = max(nint(Tfloor),env%cores_per_job)
     end if
     if (index(modus,'_nested') .ne. 0 .and. cores_per_job > 1) then
       if (env%omp_allow_nested) then
@@ -115,8 +115,10 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
   case ('min','serial')
     !> Both intern and environment variable threads to one (like a serial program)
     parallel_jobs = 1
-    cores_per_job = 1
-
+    cores_per_job = env%cores_per_job
+    if (cores_per_job > 1) call ompmklset(cores_per_job)
+    call ompenvset(cores_per_job)
+    return
   case ('subprocess','la-focus')
     !> CREST itself uses one thread, and but the environment variable is set to max
     !> which is useful when driving a single subprocess/systemcall

@@ -113,6 +113,8 @@ contains   !> MODULE PROCEDURES START HERE
       env%Threads = val
       env%autothreads = .true.
       env%threadssetmanual = .true.
+    case('cores-per-job')
+      env%cores_per_job = val
     case default
       rd = .false.
     end select
@@ -206,7 +208,7 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_rigcon
         env%runver = crest_rigcon
-
+      
       case ('protonate')
         env%properties = p_protonate
         env%crestver = crest_protonate

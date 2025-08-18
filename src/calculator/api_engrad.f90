@@ -97,6 +97,8 @@ contains    !> MODULE PROCEDURES START HERE
 
       call tblite_add_solv(mol,calc%chrg,calc%uhf,calc%tblite, &
       &    calc%solvmodel,calc%solvent)
+
+      if (allocated(calc%tblitesolver) .and. .not.allocated(calc%tblite%ctx%solver)) call tblite_solver_setup(calc%tblite%ctx, calc%tblitesolver)
     end if
     !$omp end critical
 

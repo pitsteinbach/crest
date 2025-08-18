@@ -29,6 +29,9 @@ module tblite_api
   use mctc_env,only:error_type
   use mctc_io,only:structure_type,new
   use tblite_context_type,only:tblite_ctx => context_type
+  use tblite_lapack_solver,only:lapack_solver
+  use tblite_purification_solver_context, only: purification_solver_context, purification_type, purification_runmode
+  use tblite_purification_solver_context, only: purification_precision, dmp_input
   use tblite_wavefunction_type,only:wavefunction_type,new_wavefunction
   use tblite_wavefunction,only:sad_guess,eeq_guess
   use tblite_xtb,xtb_calculator => xtb_calculator
@@ -36,7 +39,7 @@ module tblite_api
   use tblite_param,only:param_record
   use tblite_results,only:tblite_resultstype => results_type
   use tblite_wavefunction_mulliken,only:get_molecular_dipole_moment
-  use tblite_ceh_singlepoint,only:ceh_singlepoint
+  !use tblite_ceh_singlepoint,only:ceh_singlepoint
   use tblite_ceh_ceh,only:new_ceh_calculator
 #endif
   use wiberg_mayer
@@ -53,7 +56,7 @@ module tblite_api
   end type xtb_calculator
   type :: tblite_ctx
     integer :: unit = stdout
-    integer :: verbosity = 0
+    integer :: verbosity = 2
   end type tblite_ctx
   type :: tblite_resultstype
     integer :: id = 0
@@ -67,10 +70,11 @@ module tblite_api
   type :: tblite_data
     integer  :: lvl = 0
     real(wp) :: accuracy = 1.0_wp
+    logical :: force_solver_realloc = .true.
     character(len=:),allocatable :: paramfile
     type(wavefunction_type)     :: wfn
     type(xtb_calculator)        :: calc
-    type(tblite_ctx)            :: ctx
+    type(tblite_ctx) :: ctx
     type(tblite_resultstype)    :: res
   end type tblite_data
   public :: tblite_data
@@ -87,6 +91,7 @@ module tblite_api
     integer :: param = 6
   end type enum_tblite_method
   type(enum_tblite_method),parameter,public :: xtblvl = enum_tblite_method()
+  type(dmp_input) :: dmp_inp
 
   !> Conversion factor from Kelvin to Hartree
   real(wp),parameter :: ktoau = 3.166808578545117e-06_wp
@@ -96,6 +101,7 @@ module tblite_api
   public :: tblite_setup,tblite_singlepoint,tblite_addsettings
   public :: tblite_getwbos
   public :: tblite_add_solv
+  public :: tblite_solver_setup
   public :: tblite_getcharges
   public :: tblite_getdipole
 
@@ -104,8 +110,41 @@ module tblite_api
 contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
+  subroutine tblite_solver_setup(ctx, solver)
+    type(tblite_ctx)  :: ctx
+    character(len=*)  :: solver
+    select case(solver)
+    case("sygvd")
+      ctx%solver = lapack_solver(1)
+    case("gvd")
+      ctx%solver = lapack_solver(1)
+    case("sygvr")
+      ctx%solver = lapack_solver(2)
+    case("gvr")
+      ctx%solver = lapack_solver(2)
+    case("sygvd_cusolver")
+      ctx%solver = lapack_solver(3)
+    case("gvd-gpu", "gvd-cuda")
+      ctx%solver = lapack_solver(3)
+      ctx%solver%reuse = .true.
+    case("tc2","sp2")
+      dmp_inp = dmp_input(purification_type%tc2,purification_precision%mixed,purification_runmode%gpu)
+      ctx%solver = purification_solver_context(dmp_inp)
+      ctx%solver%reuse = .true.
+    case("trs4")
+      dmp_inp = dmp_input(purification_type%trs4,purification_precision%mixed,purification_runmode%gpu)
+      ctx%solver = purification_solver_context(dmp_inp)
+      ctx%solver%reuse = .true.
+    case("tc2-accel")
+      dmp_inp = dmp_input(purification_type%tc2accel,purification_precision%mixed,purification_runmode%gpu)
+      ctx%solver = purification_solver_context(dmp_inp)
+      ctx%solver%reuse = .true.
+    end select
 
-  subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,tblite)
+  end subroutine 
+    
+
+subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,tblite)
 !*****************************************************************
 !* subroutine tblite_setup initializes the tblite object which is
 !* passed between the CREST calculators and this module
@@ -128,7 +167,6 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: io
 
     pr = (tblite%ctx%verbosity > 0)
-
 !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
 
@@ -161,7 +199,7 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       else
         if (pr) call tblite%ctx%message("tblite> parameter file does not exist, defaulting to GFN2-xTB")
-        call new_gfn2_calculator(tblite%calc,mctcmol,error)
+        call new_gfn2_calculator(tblite%calc,mctcmol, error)
       end if
     case default
       call tblite%ctx%message("Error: Unknown method in tblite!")
@@ -190,8 +228,8 @@ contains  !> MODULE PROCEDURES START HERE
     use tblite_container,only:container_type
     use tblite_solvation,only:new_solvation,tblite_solvation_type => solvation_type, &
     &                         solvent_data,get_solvent_data,solvation_input,  &
-    &                         cpcm_input,alpb_input,alpb_solvation, &
-    &                         cds_input,new_solvation_cds,shift_input,new_solvation_shift
+    &                         cpcm_input,alpb_input,alpb_solvation, solution_state, &
+    &                         cds_input,new_solvation_cds,shift_input,new_solvation_shift, alpb_input, born_kernel
 #endif
     implicit none
     type(coord),intent(in)  :: mol
@@ -208,11 +246,9 @@ contains  !> MODULE PROCEDURES START HERE
     class(tblite_solvation_type),allocatable :: solv
     type(solvation_input),allocatable :: solv_inp
     type(solvent_data) :: solv_data
-    type(alpb_input)  :: alpb_tmp
-    type(cds_input)   :: cds_tmp
-    type(shift_input) :: shift_tmp
     character(len=:),allocatable :: str,solvdum,method
-    logical :: pr
+    logical :: pr, alpb
+    integer :: kernel
 
     if (.not.allocated(smodel).or..not.allocated(solvent)) then
       return
@@ -226,7 +262,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     select case (tblite%lvl)
     case (xtblvl%gfn1)
-      method ='gfn1'
+      method = 'gfn1'
     case (xtblvl%gfn2)
       method = 'gfn2'
     end select
@@ -250,48 +286,33 @@ contains  !> MODULE PROCEDURES START HERE
     select case (trim(smodel))
     case ('gbsa')
       if (pr) call tblite%ctx%message("tblite> using GBSA/"//solvdum)
-      alpb_tmp%dielectric_const = solv_data%eps
-      alpb_tmp%alpb=.false.
-      !alpb_tmp%method=method
-      alpb_tmp%solvent=solv_data%solvent
-      !alpb_tmp%xtb=.true.
-      allocate (solv_inp%alpb, source=alpb_tmp)
-      cds_tmp%alpb=.false.
-      cds_tmp%solvent=solv_data%solvent
-      !cds_tmp%method=method 
-      allocate (solv_inp%cds, source=cds_tmp)
-      shift_tmp%alpb=.false.
-      shift_tmp%solvent=solv_data%solvent
-      !shift_tmp%method=method
-      allocate (solv_inp%shift, source=shift_tmp)
+      alpb = .false.
+      kernel = born_kernel%still
+
+      solv_inp%alpb=alpb_input(solv_data%eps, solvent=solv_data%solvent, &
+               & kernel=kernel, alpb=alpb)
+      solv_inp%cds=cds_input(alpb=alpb, solvent=solv_data%solvent)
+      solv_inp%shift=shift_input(alpb=alpb, solvent=solv_data%solvent,state=solution_state%gsolv) 
+
+    
     case ('cpcm')
       if (pr) call tblite%ctx%message("tblite> using CPCM/"//solvdum)
       allocate (solv_inp%cpcm)
       solv_inp%cpcm = cpcm_input(solv_data%eps)
     case ('alpb')
       if (pr) call tblite%ctx%message("tblite> using ALPB/"//solvdum)
-      alpb_tmp%dielectric_const = solv_data%eps
-      alpb_tmp%alpb=.true.
-      !alpb_tmp%method=method
-      alpb_tmp%solvent=solv_data%solvent
-      !alpb_tmp%xtb=.true.
-      allocate (solv_inp%alpb, source=alpb_tmp)
-      cds_tmp%alpb=.true.
-      cds_tmp%solvent=solv_data%solvent
-      !cds_tmp%method=method 
-      allocate (solv_inp%cds, source=cds_tmp)
-      shift_tmp%alpb=.true.
-      shift_tmp%solvent=solv_data%solvent
-      !shift_tmp%method=method
-      allocate (solv_inp%shift, source=shift_tmp)
+      alpb = .true.
+      kernel = born_kernel%p16
+
+      solv_inp%alpb=alpb_input(solv_data%eps, solvent=solv_data%solvent, &
+               & kernel=kernel, alpb=alpb)
+      solv_inp%cds=cds_input(alpb=alpb, solvent=solv_data%solvent)
+      solv_inp%shift=shift_input(alpb=alpb, solvent=solv_data%solvent, state=solution_state%gsolv)
     case default
       if (pr) call tblite%ctx%message("tblite> Unknown tblite implicit solvation model!")
       return
     end select
-
-    str = 'tblite> WARNING: implicit solvation energies are not entirely '// &
-    &'consistent with the xtb implementation.'
-    if (pr) call tblite%ctx%message(str)
+ 
 
 !>--- add electrostatic (Born part) to calculator
     call new_solvation(solv,mctcmol,solv_inp,error,method)
@@ -301,7 +322,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     call move_alloc(solv,cont)
     call tblite%calc%push_back(cont)
-!>--- add hbond and dispersion part to calculator
+!!>--- add hbond and dispersion pert to calculator
     if (allocated(solv_inp%cds)) then
       block
         class(tblite_solvation_type),allocatable :: cds
@@ -311,7 +332,7 @@ contains  !> MODULE PROCEDURES START HERE
         call tblite%calc%push_back(cont)
       end block
     end if
-!>--- add gsolv shift to calculator
+!!>--- add gsolv shift to calculator
     if (allocated(solv_inp%shift)) then
       block
         class(tblite_solvation_type),allocatable :: shift
@@ -321,7 +342,7 @@ contains  !> MODULE PROCEDURES START HERE
         call tblite%calc%push_back(cont)
       end block
     end if
-
+    !write(*,*) tblite%calc%info(3," ")
     deallocate (solv_inp)
 
 #else /* WITH_TBLITE */
@@ -373,18 +394,19 @@ contains  !> MODULE PROCEDURES START HERE
      &                    energy,gradient, &
      &                    sigma,verbosity,results=tblite%res)
     case (xtblvl%ceh)
-      call ceh_singlepoint(tblite%ctx,tblite%calc,mctcmol,tblite%wfn, &
-      &              tblite%accuracy,verbosity)
+      !call ceh_singlepoint(tblite%ctx,tblite%calc,mctcmol,tblite%wfn, &
+      !&              tblite%accuracy,verbosity)
     case (xtblvl%eeq)
       call eeq_guess(mctcmol,tblite%calc,tblite%wfn)
     end select
 
     if (tblite%ctx%failed()) then
       !> Tear down the error stack to send the actual error messages back
+      call tblite%ctx%get_error(error)
       if (pr) call tblite%ctx%message("tblite> Singlepoint calculation failed")
       iostatus = 1
     end if
-
+    
 #else /* WITH_TBLITE */
     iostatus = 0
     energy = 0.0_wp

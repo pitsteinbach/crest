@@ -89,6 +89,10 @@ subroutine crest_singlepoint(env,tim)
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   call engrad(mol,calc,energy,grad,io)
+  do j = 1 , size(calc%calcs)
+    !if allocated(calculations(i)%calcs(j)%tblite%ctx)
+    call calc%calcs(j)%tblite%ctx%delete_solver(.true.)
+  enddo
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   call tim%stop(14)

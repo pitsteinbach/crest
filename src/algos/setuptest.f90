@@ -62,7 +62,7 @@ subroutine trialMD_calculator(env)
   type(calcdata) :: tmpcalc
   real(wp) :: energy
   real(wp),allocatable :: grd(:,:)
-  integer :: T,Tn
+  integer :: T,Tn, i
   character(len=*),parameter :: dirnam = 'TRIALMD'
 
 !>--- OMP settings (should be set to 1 to simulate max parallelization)
@@ -134,6 +134,9 @@ subroutine trialMD_calculator(env)
     !================================!
     call profiler%start(counter)
     call dynamics(mol,MD,env%calc,pr,io)
+    do i = 1, size(env%calc%calcs)
+      call env%calc%calcs(i)%tblite%ctx%delete_solver(.true.)
+    enddo
     call profiler%stop(counter)
     !================================!
 

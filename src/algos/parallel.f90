@@ -78,7 +78,7 @@ end module parallel_interface
 subroutine crest_sploop(env,nat,nall,at,xyz,eread)
 !***************************************************************
 !* subroutine crest_sploop
-!* This subroutine performs concurrent singlepoint evaluations
+!* This subroutine performs concurrent singlpoint evaluations
 !* for the given ensemble. Input eread is overwritten
 !***************************************************************
   use crest_parameters,only:wp,stdout,sep
@@ -205,6 +205,12 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   !$omp end single
   !$omp end parallel
 
+  do i = 1, size(calculations)
+    do j = 1 , size(calculations(i)%calcs)
+    call calculations(i)%calcs(j)%tblite%ctx%delete_solver(calculations(i)%calcs(j)%tblite%force_solver_realloc)
+    enddo
+  enddo
+
 !>--- finalize progress printout
   call crest_oloop_pr_progress(env,nall,-1)
 
@@ -315,7 +321,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
         io = makedir(trim(mycalc%calcs(j)%calcspace))
       end if
       if(calculations(i)%calcs(j)%id == jobtype%tblite)then
-         calculations(i)%optnewinit=.true.
+         calculations(i)%optnewinit=.false.
       endif
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = mycalc%calcs(j)%calcspace//trim(atmp)
@@ -411,6 +417,12 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
   !$omp taskwait
   !$omp end single
   !$omp end parallel
+
+  do i = 1, size(calculations)
+    do j = 1 , size(calculations(i)%calcs)
+    call calculations(i)%calcs(j)%tblite%ctx%delete_solver(calculations(i)%calcs(j)%tblite%force_solver_realloc)
+    enddo
+  enddo
 
 !>--- finalize progress printout
   call crest_oloop_pr_progress(env,nall,-1)
@@ -562,10 +574,15 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   allocate (calculations(T),source=env%calc)
   allocate (moltmps(T),source=mol)
   allocate (grdtmp(3,mol%nat),source=0.0_wp)
+  !$omp parallel &
+  !$omp shared(env,calculations,mddats,mol,pr, moltmps, T) &
+  !$omp private(ex, i, io,job,atmp) 
+  !$omp do
   do i = 1,T
     moltmps(i)%nat = mol%nat
     moltmps(i)%at = mol%at
     moltmps(i)%xyz = mol%xyz
+    !$omp critical
     do j = 1,env%calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
       !>--- directories and io preparation
@@ -579,10 +596,12 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
       if(allocated(calculations(i)%calcs(j)%systemcall)) deallocate(calculations(i)%calcs(j)%systemcall)
       call calculations(i)%calcs(j)%printid(i,j)
     end do
+    !$omp end critical
     calculations(i)%pr_energies = .false.
     !>--- initialize the calculations
     call engrad(moltmps(i),calculations(i),etmp,grdtmp,io)
   end do
+  !$omp end parallel 
 
   !>--- other settings
   pr = .false.
@@ -631,6 +650,11 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   call collect(nsim,mddats)
 
   call profiler%clear()
+  do i = 1, size(calculations)
+    do j = 1 , size(calculations(i)%calcs)
+    call calculations(i)%calcs(j)%tblite%ctx%delete_solver(calculations(i)%calcs(j)%tblite%force_solver_realloc)
+    enddo
+  enddo
   deallocate (calculations)
   if (allocated(moltmps)) deallocate (moltmps)
   return
@@ -927,6 +951,12 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   !$omp taskwait
   !$omp end single
   !$omp end parallel
+
+  do i = 1, size(calculations)
+    do j = 1 , size(calculations(i)%calcs)
+    call calculations(i)%calcs(j)%tblite%ctx%delete_solver(calculations(i)%calcs(j)%tblite%force_solver_realloc)
+    enddo
+  enddo
 
 !>--- collect trajectories into one
   call collect(nsim,mddats)

@@ -17,7 +17,7 @@
 option(
   'la_backend',
   type: 'combo',
-  value: 'mkl-static',
+  value: 'mkl',
   yield: true,
   choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom','none'],
   description: 'Linear algebra backend for program.',
@@ -71,5 +71,21 @@ option(
   type: 'boolean',
   value: true,
   description: 'build with lwONIOM integration',
+)
+
+option(
+  'gpu',
+  type: 'feature',
+  value: 'auto',
+  yield: true,
+  description: 'Compile with cuBLAS wrapper for capable GPUs only.',
+)
+
+option(
+  'gpu_arch', 
+  type: 'array',
+  value: ['89','86','80','70'],
+  yield: true,
+  description: 'GPU architecture version string',
 )
 

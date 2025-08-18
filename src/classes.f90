@@ -376,6 +376,7 @@ module crest_data
     integer :: omp = 1         !> OMP/MKL_NUM_THREADS
     integer :: Threads = 1     !> Total number of threads (=omp*MAXRUN)
     logical :: omp_allow_nested = .true.  !> allow nested OpenMP threadding
+    integer :: cores_per_job = 1 !> number of cores per job (if >1, omp_allow_nested is set to .true.)
 
     !>--- various names and flags
     character(len=128) :: ensemblename   !> ensemble input name for SCREEN,MDOPT and CREGEN

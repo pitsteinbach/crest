@@ -302,6 +302,9 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('efile')
       job%efile = kv%value_c
+    
+    case('solver')
+      job%tblitesolver = kv%value_c
 
     case ('tblite_level','tblite_hamiltonian')
       select case (kv%value_c)
