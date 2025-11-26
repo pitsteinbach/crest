@@ -74,7 +74,7 @@ module tblite_api
     character(len=:),allocatable :: paramfile
     type(wavefunction_type)     :: wfn
     type(xtb_calculator)        :: calc
-    type(tblite_ctx) :: ctx
+    type(tblite_ctx), allocatable  :: ctx
     type(tblite_resultstype)    :: res
   end type tblite_data
   public :: tblite_data
@@ -91,7 +91,6 @@ module tblite_api
     integer :: param = 6
   end type enum_tblite_method
   type(enum_tblite_method),parameter,public :: xtblvl = enum_tblite_method()
-  type(dmp_input) :: dmp_inp
 
   !> Conversion factor from Kelvin to Hartree
   real(wp),parameter :: ktoau = 3.166808578545117e-06_wp
@@ -110,9 +109,11 @@ module tblite_api
 contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
-  subroutine tblite_solver_setup(ctx, solver)
+  subroutine tblite_solver_setup(ctx, solver, precision)
     type(tblite_ctx)  :: ctx
     character(len=*)  :: solver
+    character(len=:), allocatable  :: precision
+    type(dmp_input), allocatable :: dmp_inp
     select case(solver)
     case("sygvd")
       ctx%solver = lapack_solver(1)
@@ -122,27 +123,41 @@ contains  !> MODULE PROCEDURES START HERE
       ctx%solver = lapack_solver(2)
     case("gvr")
       ctx%solver = lapack_solver(2)
-    case("sygvd_cusolver")
-      ctx%solver = lapack_solver(3)
-    case("gvd-gpu", "gvd-cuda")
+    case("gvd-gpu", "gvd-cuda", "sygvd-gpu", "sygvd-cuda")
       ctx%solver = lapack_solver(3)
       ctx%solver%reuse = .true.
     case("tc2","sp2")
       dmp_inp = dmp_input(purification_type%tc2,purification_precision%mixed,purification_runmode%gpu)
-      ctx%solver = purification_solver_context(dmp_inp)
-      ctx%solver%reuse = .true.
     case("trs4")
       dmp_inp = dmp_input(purification_type%trs4,purification_precision%mixed,purification_runmode%gpu)
-      ctx%solver = purification_solver_context(dmp_inp)
-      ctx%solver%reuse = .true.
     case("tc2-accel")
       dmp_inp = dmp_input(purification_type%tc2accel,purification_precision%mixed,purification_runmode%gpu)
       ctx%solver = purification_solver_context(dmp_inp)
       ctx%solver%reuse = .true.
     end select
+    if (allocated(dmp_inp)) then
+      !> set precision if purification solver is used
+      if (allocated(precision)) then
+        select case(precision)
+        case("double")
+          dmp_inp%precision = purification_precision%double
+        case("single")
+          dmp_inp%precision = purification_precision%single
+        case("mixed-fp16")
+          dmp_inp%precision = purification_precision%mixed_fp16
+        case("mixed")
+          dmp_inp%precision = purification_precision%mixed
+        case default
+          dmp_inp%precision = purification_precision%mixed
+        end select
+      else
+        dmp_inp%precision = purification_precision%mixed
+      end if
+      ctx%solver = purification_solver_context(dmp_inp)
+      ctx%solver%reuse = .true.
+    end if
 
   end subroutine 
-    
 
 subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,tblite)
 !*****************************************************************
@@ -246,6 +261,9 @@ subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,tblite)
     class(tblite_solvation_type),allocatable :: solv
     type(solvation_input),allocatable :: solv_inp
     type(solvent_data) :: solv_data
+    type(alpb_input)  :: alpb_tmp
+    type(cds_input)   :: cds_tmp
+    type(shift_input) :: shift_tmp
     character(len=:),allocatable :: str,solvdum,method
     logical :: pr, alpb
     integer :: kernel
@@ -262,7 +280,7 @@ subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,tblite)
     end if
     select case (tblite%lvl)
     case (xtblvl%gfn1)
-      method = 'gfn1'
+      method ='gfn1'
     case (xtblvl%gfn2)
       method = 'gfn2'
     end select
@@ -286,28 +304,40 @@ subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,tblite)
     select case (trim(smodel))
     case ('gbsa')
       if (pr) call tblite%ctx%message("tblite> using GBSA/"//solvdum)
-      alpb = .false.
-      kernel = born_kernel%still
-
-      solv_inp%alpb=alpb_input(solv_data%eps, solvent=solv_data%solvent, &
-               & kernel=kernel, alpb=alpb)
-      solv_inp%cds=cds_input(alpb=alpb, solvent=solv_data%solvent)
-      solv_inp%shift=shift_input(alpb=alpb, solvent=solv_data%solvent,state=solution_state%gsolv) 
-
-    
+      alpb_tmp%dielectric_const = solv_data%eps
+      alpb_tmp%alpb=.false.
+      !alpb_tmp%method=method
+      alpb_tmp%solvent=solv_data%solvent
+      !alpb_tmp%xtb=.true.
+      allocate (solv_inp%alpb, source=alpb_tmp)
+      cds_tmp%alpb=.false.
+      cds_tmp%solvent=solv_data%solvent
+      !cds_tmp%method=method 
+      allocate (solv_inp%cds, source=cds_tmp)
+      shift_tmp%alpb=.false.
+      shift_tmp%solvent=solv_data%solvent
+      !shift_tmp%method=method
+      allocate (solv_inp%shift, source=shift_tmp)
     case ('cpcm')
       if (pr) call tblite%ctx%message("tblite> using CPCM/"//solvdum)
       allocate (solv_inp%cpcm)
       solv_inp%cpcm = cpcm_input(solv_data%eps)
     case ('alpb')
       if (pr) call tblite%ctx%message("tblite> using ALPB/"//solvdum)
-      alpb = .true.
-      kernel = born_kernel%p16
-
-      solv_inp%alpb=alpb_input(solv_data%eps, solvent=solv_data%solvent, &
-               & kernel=kernel, alpb=alpb)
-      solv_inp%cds=cds_input(alpb=alpb, solvent=solv_data%solvent)
-      solv_inp%shift=shift_input(alpb=alpb, solvent=solv_data%solvent, state=solution_state%gsolv)
+      alpb_tmp%dielectric_const = solv_data%eps
+      alpb_tmp%alpb=.true.
+      !alpb_tmp%method=method
+      alpb_tmp%solvent=solv_data%solvent
+      !alpb_tmp%xtb=.true.
+      allocate (solv_inp%alpb, source=alpb_tmp)
+      cds_tmp%alpb=.true.
+      cds_tmp%solvent=solv_data%solvent
+      !cds_tmp%method=method 
+      allocate (solv_inp%cds, source=cds_tmp)
+      shift_tmp%alpb=.true.
+      shift_tmp%solvent=solv_data%solvent
+      !shift_tmp%method=method
+      allocate (solv_inp%shift, source=shift_tmp)
     case default
       if (pr) call tblite%ctx%message("tblite> Unknown tblite implicit solvation model!")
       return
@@ -322,7 +352,7 @@ subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,tblite)
     end if
     call move_alloc(solv,cont)
     call tblite%calc%push_back(cont)
-!!>--- add hbond and dispersion pert to calculator
+!>--- add hbond and dispersion part to calculator
     if (allocated(solv_inp%cds)) then
       block
         class(tblite_solvation_type),allocatable :: cds

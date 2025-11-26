@@ -78,7 +78,7 @@ end module parallel_interface
 subroutine crest_sploop(env,nat,nall,at,xyz,eread)
 !***************************************************************
 !* subroutine crest_sploop
-!* This subroutine performs concurrent singlpoint evaluations
+!* This subroutine performs concurrent singlepoint evaluations
 !* for the given ensemble. Input eread is overwritten
 !***************************************************************
   use crest_parameters,only:wp,stdout,sep
@@ -346,7 +346,6 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
 
 !>--- first progress printout (initializes progress variables)
   call crest_oloop_pr_progress(env,nall,0)
-
 !>--- shared variables
   allocate (grads(3,nat,T),source=0.0_wp)
   c = 0  !> counter of successfull optimizations
@@ -530,7 +529,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   use crest_calculator
   use strucrd
   use dynamics_module
-  use iomod,only:makedir,directory_exist,remove
+  use iomod,only:makedir,directory_exist,remove, setenv
   use omp_lib
   use crest_restartlog,only:trackrestart,restart_write_dummy
   implicit none
@@ -570,7 +569,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 !>--- prepare calculation containers for parallelization (one per thread)
   call new_ompautoset(env,'auto_nested',nsim,T,Tn)
   nested = env%omp_allow_nested
-
   allocate (calculations(T),source=env%calc)
   allocate (moltmps(T),source=mol)
   allocate (grdtmp(3,mol%nat),source=0.0_wp)
@@ -598,7 +596,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     end do
     !$omp end critical
     calculations(i)%pr_energies = .false.
-    !>--- initialize the calculations
+    !>--- initialize the calculations 
     call engrad(moltmps(i),calculations(i),etmp,grdtmp,io)
   end do
   !$omp end parallel 
@@ -617,7 +615,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 
     call initsignal()
     vz = i
-
     !>--- OpenMP nested region threads
     if (nested) call ompmklset(Tn)
 

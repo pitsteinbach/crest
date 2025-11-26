@@ -183,7 +183,6 @@ contains  !> MODULE PROCEDURES START HERE
         !==========================================!
         call numgrad_core(molptr,calc,i,iostatus)
         !==========================================!
-
         if (iostatus /= 0) then
           return
         end if
@@ -338,7 +337,6 @@ contains  !> MODULE PROCEDURES START HERE
     case (jobtype%tblite)
       !> tblite api call
       call tblite_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
-
     case (jobtype%gfn0)
       !> GFN0-xTB api
       call gfn0_engrad(molptr,calc%calcs(id),calc%calcs(id)%g0calc,calc%etmp(id), &

@@ -19,8 +19,8 @@
 	url = https://github.com/fortran-lang/test-drive.git
 [submodule "subprojects/tblite"]
 	path = subprojects/tblite
-	url =  https://github.com/pitsteinbach/tblite
-    branch = tc-purification
+	url = https://github.com/pitsteinbach/tblite.git
+	branch = tc-purification
 [submodule "subprojects/pvol"]
 	path = subprojects/pvol
 	url = https://github.com/neudecker-group/libpvol.git

@@ -152,12 +152,15 @@ contains    !> MODULE PROCEDURES START HERE
     loadnew = .false.
     if (.not.allocated(calc%tblite)) then
       allocate (calc%tblite)
+      
       if(allocated(calc%tbliteparam))then
         calc%tblite%paramfile = calc%tbliteparam
       endif
       loadnew = .true.
     end if
+    if (.not. allocated(calc%tblite%ctx)) allocate (calc%tblite%ctx)
     if (calc%apiclean) loadnew = .true.
+
   end subroutine tblite_init
   subroutine tblite_properties(calc,mol,iostatus)
 !********************************************************

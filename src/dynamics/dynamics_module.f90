@@ -507,6 +507,10 @@ contains  !> MODULE PROCEDURES START HERE
     if(allocated(dat%active_potentials))then
       call calc%active_restore()
     endif
+    
+    do i = 1, size(calc%calcs)
+      call calc%calcs(i)%tblite%ctx%delete_solver(calc%calcs(i)%tblite%force_solver_realloc)
+    end do
 
     return
   end subroutine dynamics

@@ -114,6 +114,7 @@ contains   !> MODULE PROCEDURES START HERE
       env%autothreads = .true.
       env%threadssetmanual = .true.
     case('cores-per-job')
+      write(*,*) val
       env%cores_per_job = val
     case default
       rd = .false.
@@ -170,7 +171,7 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_scanning
       case ('search_1')
-        env%preopt = .false.
+        env%preopt = .true.
         env%crestver = crest_s1
         env%runver = crest_s1
       case ('mecp','mecp_search')
@@ -178,7 +179,7 @@ contains   !> MODULE PROCEDURES START HERE
         env%crestver = crest_mecp
         env%runver = crest_mecp
       case ('imtd-gc')
-        env%preopt = .false.
+        env%preopt = .true.
         env%crestver = crest_imtd
         env%runver = 1
       case ('nci-mtd','nci')
@@ -205,10 +206,10 @@ contains   !> MODULE PROCEDURES START HERE
         env%crestver = crest_numhessian
         env%runver = crest_numhessian
       case ('rigidconf')
-        env%preopt = .false.
+        env%preopt = .true.
         env%crestver = crest_rigcon
         env%runver = crest_rigcon
-      
+
       case ('protonate')
         env%properties = p_protonate
         env%crestver = crest_protonate
@@ -230,7 +231,7 @@ contains   !> MODULE PROCEDURES START HERE
     case ('ensemble_input','ensemble','input_ensemble')
       env%ensemblename = val
       env%inputcoords = val
-    case ('input','structure')
+    case ('input','structure','coord','coords')
       env%inputcoords = val
       call mol%open(val)
       call env%ref%load(mol)

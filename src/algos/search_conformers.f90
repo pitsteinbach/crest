@@ -92,7 +92,6 @@ subroutine crest_search_imtdgc(env,tim)
    call tim%stop(1)
    if(env%iostatus_meta .ne. 0 ) return
   end if
-
 !===========================================================!
 !>--- Start mainloop 
   env%nreset = 0
@@ -387,6 +386,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
      !>--- set threads
        call new_ompautoset(env,'auto',nall,T,Tn)
      !>--- set optimization parameters
+       call env%calc%dealloc_params()
        call set_multilevel_options(env,i,.true.)
      !>--- run parallel optimizations
        call crest_oloop(env,nat,nall,at,xyz,eread,dump)

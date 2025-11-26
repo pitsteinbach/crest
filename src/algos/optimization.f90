@@ -75,6 +75,9 @@ subroutine crest_optimization(env,tim)
   call optimize_geometry(mol,molnew,calc,energy,grad,pr,wr,io)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+do i = 1, size(calc%calcs)
+    call calc%calcs(i)%tblite%ctx%delete_solver(calc%calcs(i)%tblite%force_solver_realloc)
+end do
   if (io == 0) then
 !>--- print out the results
     write (stdout,*) 'SUCCESS!'

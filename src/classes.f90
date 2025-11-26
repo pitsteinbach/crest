@@ -375,8 +375,8 @@ module crest_data
     integer :: MAXRUN = 1      !> number of cores per job
     integer :: omp = 1         !> OMP/MKL_NUM_THREADS
     integer :: Threads = 1     !> Total number of threads (=omp*MAXRUN)
+    integer :: cores_per_job = 1
     logical :: omp_allow_nested = .true.  !> allow nested OpenMP threadding
-    integer :: cores_per_job = 1 !> number of cores per job (if >1, omp_allow_nested is set to .true.)
 
     !>--- various names and flags
     character(len=128) :: ensemblename   !> ensemble input name for SCREEN,MDOPT and CREGEN
@@ -554,6 +554,7 @@ module crest_data
     logical :: fullcre = .false.     !> calculate exact rotamer degeneracies
     logical :: gbsa                  !> use gbsa
     logical :: gcmultiopt            !> 2 level optimization for GC in V2
+    logical :: gradsp = .true.       !> turn on/off gradient calculation in singlepoint
     logical :: heavyrmsd = .false.   !> use only heavy atoms for RMSD in CREGEN?
     logical :: inplaceMode = .true.  !> in-place mode: optimization dirs are created "on-the-fly"
     logical :: iterativeV2           !> iterative version of V2 (= V3)

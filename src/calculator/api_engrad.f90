@@ -92,14 +92,13 @@ contains    !> MODULE PROCEDURES START HERE
 !>-- populate parameters and wavefunction
     if (loadnew) then
       call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp,calc%tblite)
-
       call tblite_addsettings(calc%tblite,calc%maxscc,calc%rdwbo,calc%saveint,calc%accuracy)
-
+      
       call tblite_add_solv(mol,calc%chrg,calc%uhf,calc%tblite, &
       &    calc%solvmodel,calc%solvent)
-
-      if (allocated(calc%tblitesolver) .and. .not.allocated(calc%tblite%ctx%solver)) call tblite_solver_setup(calc%tblite%ctx, calc%tblitesolver)
     end if
+    if (allocated(calc%tblitesolver) .and. .not.allocated(calc%tblite%ctx%solver)) call tblite_solver_setup(calc%tblite%ctx, calc%tblitesolver, calc%tbliteprec)
+     
     !$omp end critical
 
 !>--- do the engrad call

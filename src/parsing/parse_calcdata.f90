@@ -302,9 +302,6 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('efile')
       job%efile = kv%value_c
-    
-    case('solver')
-      job%tblitesolver = kv%value_c
 
     case ('tblite_level','tblite_hamiltonian')
       select case (kv%value_c)
@@ -330,6 +327,11 @@ contains !> MODULE PROCEDURES START HERE
     case ('tblite_param')
       job%tbliteparam = kv%value_c
       job%tblitelvl = xtblvl%param
+
+    case('solver')
+      job%tblitesolver = kv%value_c
+    case('solver_precision')
+      job%tbliteprec = kv%value_c
 
     case ('orca_cmd')
       job%id = jobtype%orca
@@ -1058,6 +1060,8 @@ contains !> MODULE PROCEDURES START HERE
     case ('t','temp','temperature')
       mddat%tsoll = kv%value_f
       mddat%thermostat = .true.
+    case('thermostat')
+      mddat%thermostat = kv%value_b
 
     case ('shake')
       select case (kv%id)

@@ -141,6 +141,7 @@ module calc_type
     character(len=:),allocatable :: solvmodel
     character(len=:),allocatable :: solvent
     character(len=:),allocatable :: tblitesolver
+    character(len=:),allocatable :: tbliteprec
 !>--- Some optional file name storages
     character(len=:),allocatable :: parametrisation
     logical  :: restart = .false.  !> restart option (some potentials can do this)

@@ -56,6 +56,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(out)       :: iostatus
     real(wp),intent(inout)    :: etot
     real(wp),intent(inout)    :: grd(3,mol%nat)
+    integer :: i
 
     iostatus = -1
     !> do NOT overwrite original geometry
@@ -92,7 +93,7 @@ contains  !> MODULE PROCEDURES START HERE
       write(stdout,'(a)') 'Unknown optimization engine!'
       stop
     end select
-    molnew%energy = etot   
+    molnew%energy = etot
     return
   end subroutine optimize_geometry
 
