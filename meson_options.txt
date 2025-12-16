@@ -15,11 +15,11 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 option(
-  'la_backend',
+  'lapack',
   type: 'combo',
-  value: 'mkl-static',
+  value: 'auto',
   yield: true,
-  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom','none'],
+  choices: ['mkl', 'mkl-rt', 'openblas', 'netlib', 'custom', 'auto'],
   description: 'Linear algebra backend for program.',
 )
 option(
@@ -28,6 +28,29 @@ option(
   value: [],
   description: 'libraries to load for custom linear algebra backend',
 )
+
+# Optional but often useful for MKL users 
+option(
+  'mkl_link',
+  type: 'combo',
+  value: 'auto',
+  yield: true,
+  choices: ['auto', 'rt', 'static'],
+  description: 'How to link MKL: auto=best effort, rt=use libmkl_rt, static=link MKL static archives (not the same as fully static executable).',
+)
+
+# -----------------------------
+# Link mode
+# -----------------------------
+option(
+  'link_mode',
+  type: 'combo',
+  value: 'default',
+  yield: true,
+  choices: ['default', 'prefer-static', 'fully-static'],
+  description: 'Executable link mode: default=normal, prefer-static=prefer static libs when available, fully-static=pass -static (may fail on some systems).',
+)
+
 option(
   'openmp',
   type: 'boolean',
