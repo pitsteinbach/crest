@@ -23,6 +23,13 @@ option(
   description: 'Linear algebra backend for program.',
 )
 option(
+  'lapack',
+  type: 'combo',
+  value: 'mkl',
+  yield: true,
+  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom','none'], 
+)
+option(
   'custom_libraries',
   type: 'array',
   value: [],
