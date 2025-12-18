@@ -57,6 +57,7 @@ crest_lib = library(
   sources: srcs,
   dependencies: exe_deps,
 #  include_directories: include_directories('include'),
+  link_language: 'fortran',
 )
 
 # Export as dependency
